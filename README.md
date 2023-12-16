@@ -2,7 +2,7 @@
 
 Inertia-Fiber uses the GoFiber view engine as default.
 
-> The Inertia.js server-side adapter for Go. Visit [inertiajs.com](https://inertiajs.com) to learn more.
+> The Inertia.js server-side adapter for Go. Visit [inertiajs.com](https://inertiajs.com) to learn more.<br />
 > *Note: All features have been tested in the example project. If, however, you do find a bug, please report it in the issues.*
 
 This code is taken from [ztcollazo](https://github.com/ztcollazo/fiber_inertia) with some improvement and additions.
