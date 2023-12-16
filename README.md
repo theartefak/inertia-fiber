@@ -73,6 +73,8 @@ func main() {
 ...
 ```
 
+> For more examples refer to this repo at https://github.com/theartefak/demo-inertia-fiber
+
 ### Default Config
 
 - **Root** : `./resources/views`
