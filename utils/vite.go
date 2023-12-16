@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 // vite returns the HTML for the specified entrypoints.
@@ -65,7 +66,7 @@ func hotAsset(asset string) string {
 		panic(err)
 	}
 
-	return string(data) + "/" + asset
+	return strings.TrimSuffix(string(data), "\n") + "/" + asset
 }
 
 // isRunningHot returns true if running in hot mode.
