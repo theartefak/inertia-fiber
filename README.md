@@ -5,8 +5,6 @@ Inertia-Fiber uses the GoFiber view engine as default.
 > The Inertia.js server-side adapter for Go. Visit [inertiajs.com](https://inertiajs.com) to learn more.<br />
 > *Note: All features have been tested in the example project. If, however, you do find a bug, please report it in the issues.*
 
-This code is taken from [ztcollazo](https://github.com/ztcollazo/fiber_inertia) with some improvement and additions.
-
 > [!WARNING]
 > This code does not yet support `TypeScript` and `ReactJS`, only supports `VueJS` and `Vite`.
 
@@ -93,6 +91,7 @@ func main() {
 - [**GoFiber**](https://github.com/gofiber/fiber)
 - [**ztcollazo**](https://github.com/ztcollazo/fiber_inertia)
 - [**theArtechnology**](https://github.com/theArtechnology/fiber-inertia)
+- [**elipZis**](https://github.com/elipZis/inertia-echo)
 
 and many more.
 

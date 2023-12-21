@@ -1,3 +1,6 @@
+// Much of this file is directly taken from https://github.com/elipZis/inertia-echo/blob/master/util/ziggy.go
+// That project has a license.
+
 package utils
 
 import (
