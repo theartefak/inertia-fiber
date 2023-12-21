@@ -8,21 +8,23 @@ import (
 )
 
 // Ziggy is a struct to export compatible Echo routes for https://github.com/tightenco/ziggy.
-type Ziggy struct {
-	BaseDomain   string                `json:"domain"`
-	BasePort     int                   `json:"port"`
-	BaseProtocol string                `json:"protocol"`
-	BaseUrl      string                `json:"url"`
-	Group        string                `json:"group"`
-	Routes       map[string]ZiggyRoute `json:"routes"`
-}
+type (
+	Ziggy struct {
+		BaseDomain   string                `json:"domain"`
+		BasePort     int                   `json:"port"`
+		BaseProtocol string                `json:"protocol"`
+		BaseUrl      string                `json:"url"`
+		Group        string                `json:"group"`
+		Routes       map[string]ZiggyRoute `json:"routes"`
+	}
 
 // ZiggyRoute represents a single route for https://github.com/tightenco/ziggy.
-type ZiggyRoute struct {
-	Uri     string   `json:"uri"`
-	Methods []string `json:"methods"`
-	Domain  string   `json:"domain"`
-}
+	ZiggyRoute struct {
+		Uri     string   `json:"uri"`
+		Methods []string `json:"methods"`
+		Domain  string   `json:"domain"`
+	}
+)
 
 // NewZiggy creates a new Ziggy instance.
 func NewZiggy(c *fiber.Ctx) Ziggy {
