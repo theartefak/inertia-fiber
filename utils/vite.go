@@ -11,6 +11,8 @@ import (
 
 // vite returns the HTML for the specified entrypoints.
 func Vite(entrypoints []string, buildDirectory ...string) template.HTML {
+	var builder strings.Builder
+
 	// If running in hot mode, return the HTML for the hot asset.
 	if isRunningHot() {
 		html := makeTagForChunk(hotAsset("@vite/client"))
@@ -22,17 +24,20 @@ func Vite(entrypoints []string, buildDirectory ...string) template.HTML {
 
 	// Otherwise, return the HTML for the specified entrypoints.
 	manifest := manifest(buildDirectory...)
-	html := template.HTML("")
 
 	for _, v := range entrypoints {
-		m := manifest[v]
+		m, exists := manifest[v]
+        if !exists {
+            continue
+        }
+
 		for _, css := range m.Css {
-			html += template.HTML(makeStylesheetTag(css))
+			builder.WriteString(string(makeStylesheetTag(css)))
 		}
-		html += template.HTML(makeScriptTag(m.File))
+		builder.WriteString(string(makeScriptTag(m.File)))
 	}
 
-	return html
+	return template.HTML(builder.String())
 }
 
 // makeTagForChunk returns the HTML tag for the specified URL.

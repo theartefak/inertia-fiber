@@ -4,6 +4,7 @@
 package utils
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -46,14 +47,14 @@ func NewZiggy(c *fiber.Ctx) Ziggy {
 	z.BaseDomain = splitHost[0]
 
 	// Set the base URL to the protocol and domain.
-	z.BaseUrl = z.BaseProtocol + "://" + z.BaseDomain
+	z.BaseUrl = fmt.Sprintf("%s://%s", z.BaseProtocol, z.BaseDomain)
 
 	// If the hostname contains a port number, set the base port and add it to the base URL.
 	if len(splitHost) > 1 {
 		port, err := strconv.Atoi(splitHost[1])
 		if err == nil && port > 0 {
 			z.BasePort = port
-			z.BaseUrl += ":" + strconv.Itoa(z.BasePort)
+			z.BaseUrl += fmt.Sprintf(":%d", z.BasePort)
 		}
 	}
 
