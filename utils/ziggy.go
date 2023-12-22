@@ -67,6 +67,12 @@ func NewZiggy(c *fiber.Ctx) Ziggy {
 			continue
 		}
 
+		// Remove trailing slash from route.Path
+		uri := route.Path
+		if uri != "/" {
+			uri = strings.TrimPrefix(uri, "/")
+		}
+
 		if ziggyRoute, ok := z.Routes[route.Name]; ok {
 			if !contains(ziggyRoute.Methods, route.Method) {
 				ziggyRoute.Methods = append(ziggyRoute.Methods, route.Method)
@@ -74,8 +80,8 @@ func NewZiggy(c *fiber.Ctx) Ziggy {
 			z.Routes[route.Name] = ziggyRoute
 		} else {
 			z.Routes[route.Name] = ZiggyRoute{
-				Uri:     route.Path,
-				Methods: []string{route.Method},
+				Uri     : uri,
+				Methods : []string{route.Method},
 			}
 		}
 	}
