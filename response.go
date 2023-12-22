@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 
@@ -37,10 +36,10 @@ func (e *Engine) display(component string, props fiber.Map, w io.Writer) error {
 
 	// Create a new data map with the component, props, URL, and version.
 	data := map[string]interface{}{
-		"component": component,
-		"props":     dt,
-		"url":       e.ctx.OriginalURL(),
-		"version":   e.ctx.Get(HeaderVersion, ""),
+		"component" : component,
+		"props"     : dt,
+		"url"       : e.ctx.OriginalURL(),
+		"version"   : e.ctx.Get(HeaderVersion, ""),
 	}
 
 	// Clear the next props.
@@ -49,7 +48,7 @@ func (e *Engine) display(component string, props fiber.Map, w io.Writer) error {
 	// Check if the response should be rendered as JSON.
 	renderJSON, err := strconv.ParseBool(e.ctx.Get(HeaderPrefix, "false"))
 	if err != nil {
-		log.Fatal("X-Inertia not parsable")
+	    return fmt.Errorf("X-Inertia not parsable: %w", err)
 	}
 
 	// If the response should be rendered as JSON, return a JSON response.
@@ -65,9 +64,8 @@ func (e *Engine) display(component string, props fiber.Map, w io.Writer) error {
 func (e *Engine) toResponse(data fiber.Map, w io.Writer, tmpl string, renderer func(io.Writer, string, any, ...string) error, params map[string]any) error {
 	// Marshal the data to JSON.
 	componentData, err := json.Marshal(data)
-
 	if err != nil {
-		panic(err)
+	    return fmt.Errorf("JSON marshaling failed: %w", err)
 	}
 
 	// Create a new Ziggy instance.
@@ -108,12 +106,14 @@ func partialReload(c *fiber.Ctx, component string, props fiber.Map) fiber.Map {
 		var newProps = make(fiber.Map)
 		partials := strings.Split(c.Get(HeaderPartialData, ""), ",")
 
-		for key := range props {
-			for _, partial := range partials {
-				if key == partial {
-					newProps[partial] = props[key]
-				}
+		for _, partial := range partials {
+			if val, ok := props[partial]; ok {
+				newProps[partial] = val
 			}
+		}
+
+		if len(newProps) > 0 {
+			return newProps
 		}
 	}
 
