@@ -20,7 +20,7 @@ func (e *Engine) Middleware() fiber.Handler {
 
 		// If the request is an XHR GET request and the version header does not match the hash, return a conflict error.
 		if c.Method() == "GET" && c.XHR() && c.Get(HeaderVersion, "1") != hash {
-			c.Set(HeaderLocation, c.Path())
+			c.Set(HeaderLocation, c.OriginalURL())
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{})
 		}
 
