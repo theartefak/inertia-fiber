@@ -53,15 +53,3 @@ func New(config ...Config) *Engine {
 		next   : make(map[string]any),
 	}
 }
-
-func (e *Engine) Share(name string, value any) {
-	e.props[name] = value
-}
-
-func (e *Engine) AddProp(name string, value any) {
-	e.next[name] = value
-}
-
-func (e *Engine) AddParam(name string, value any) {
-	e.params[name] = value
-}
