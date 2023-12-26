@@ -12,142 +12,141 @@ import (
 	"github.com/theartefak/inertia-fiber/utils"
 )
 
-// Render renders the component with the specified props.
+// Render renders the Inertia component.
 func (e *Engine) Render(w io.Writer, component string, props any, paths ...string) error {
-	// Reload the component with the specified props.
-	p := partialReload(e.ctx, component, props.(fiber.Map))
+	// Type assertion for props to ensure it is a fiber.Map
+	propsMap, ok := props.(fiber.Map)
+	if !ok {
+		return fmt.Errorf("X-Inertia: props must be of type fiber.Map")
+	}
+	// Partial reload to get updated props
+	p := partialReload(e.ctx, component, propsMap)
 
-	// Display the component with the specified props.
 	return e.display(component, p, w)
 }
 
-// display displays the component with the specified props.
-func (e *Engine) display(component string, props fiber.Map, w io.Writer) error {
+// display handles the rendering of the Inertia component.
+func (e *Engine) display(component string, props map[string]interface{}, w io.Writer) error {
+	// Create a new Inertia page with default values
 	data := &Page{
-		Component: component,
-		Props: make(fiber.Map),
-		URL: e.ctx.OriginalURL(),
-		Version: e.version,
+		Component : component,
+		Props     : make(fiber.Map),
+		URL       : e.ctx.OriginalURL(),
+		Version   : e.version,
 	}
 
-	// Merge the current props with the next props.
+	// Copy values from the 'next' map to the Inertia page props
 	for key, value := range e.next {
 		data.Props[key] = value
 	}
 
-	// Merge the current props with the specified props.
+	// Copy values from the current props to the Inertia page props
 	for key, value := range props {
 		data.Props[key] = value
 	}
 
-	// Retrieve the value associated with the ContextKeyProps key from the context.
+	// Copy values from the context props to the Inertia page props
 	contextProps := e.ctx.Context().Value(ContextKeyProps)
-
-	// Check if the retrieved contextProps is not nil.
 	if contextProps != nil {
-		// Attempt to type assert contextProps to a fiber.Map.
 		contextProps, ok := contextProps.(fiber.Map)
-
-		// Check if the type assertion was successful.
 		if !ok {
-			// If the type assertion fails, return an error indicating the conversion failure.
 			return fmt.Errorf("X-Inertia: could not convert context props to map")
 		}
-
-		// Iterate over key-value pairs in the contextProps map.
 		for key, value := range contextProps {
-			// Copy each key-value pair from contextProps to the data.Props map.
 			data.Props[key] = value
 		}
 	}
 
-
-	// Clear the next props.
+	// Reset the 'next' map for the next rendering cycle
 	e.next = map[string]any{}
 
-	// Check if the response should be rendered as JSON.
+	// Check if XHR and Inertia should render JSON response
 	renderJSON, err := strconv.ParseBool(e.ctx.Get(HeaderPrefix, "false"))
 	if err != nil {
 		return fmt.Errorf("X-Inertia not parsable: %w", err)
 	}
 
-	// If the response should be rendered as JSON, return a JSON response.
 	if renderJSON && e.ctx.XHR() {
+		// Set headers for JSON response and return JSON representation of the Inertia page
 		e.ctx.Set("Vary", "Accept")
 		e.ctx.Set("X-Inertia", "true")
 		e.ctx.Set("Content-Type", "application/json")
 		return jsonResponse(e.ctx, data)
 	}
 
-	// Otherwise, return an HTML response.
+	// Render the HTML response using the configured template and parameters
 	return e.toResponse(data, w, e.config.Template, e.Engine.Render, e.params)
 }
 
-// toResponse returns an HTML response with the specified data and template.
+// toResponse prepares the data for rendering and invokes the specified renderer.
 func (e *Engine) toResponse(data *Page, w io.Writer, tmpl string, renderer func(io.Writer, string, any, ...string) error, params map[string]any) error {
-	// Marshal the data to JSON.
+	// Marshal Inertia page data to JSON
 	componentData, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("JSON marshaling failed: %w", err)
 	}
 
-	// Create a new Ziggy instance.
+	// Create a new Ziggy instance
 	ziggy := utils.NewZiggy(e.ctx)
 
-	// Marshal the Ziggy instance to JSON.
-	ziggyData, _ := json.Marshal(ziggy)
+	// Marshal Ziggy data to JSON
+	ziggyData, err := json.Marshal(ziggy)
+	if err != nil {
+		return fmt.Errorf("JSON marshaling failed: %w", err)
+	}
 
-	// Create a new map with the Inertia key, the component data, and the Ziggy data.
+	// Construct values for rendering the HTML page
 	vals := fiber.Map{
 		"Inertia" : template.HTML(fmt.Sprintf("<div id='app' data-page='%s'></div>", string(componentData))),
 		"Ziggy"   : template.HTML(fmt.Sprintf("<script>const Ziggy = %s;</script>", string(ziggyData))),
 		"Vite"    : utils.Vite([]string{e.config.AssetsPath + "/app.js", e.config.AssetsPath + "/Pages/" + data.Component + ".vue"}),
 	}
 
-	// Merge the params into the map.
+	// Add additional parameters for rendering
 	for key, value := range params {
 		vals[key] = value
 	}
 
+	// Set the Content-Type header for HTML response
 	e.ctx.Set("Content-Type", "text/html")
 
-	// Render the template with the map.
+	// Invoke the specified renderer to render the HTML page
 	return renderer(w, tmpl, vals)
 }
 
-// jsonResponse returns a JSON response with the specified page.
+// jsonResponse sends a JSON response using Fiber for Inertia requests.
 func jsonResponse(c *fiber.Ctx, page *Page) error {
-	// Marshal the page to JSON.
-	jsonByte, _ := json.Marshal(page)
+	// Marshal the Inertia page to JSON
+	jsonByte, err := json.Marshal(page)
+	if err != nil {
+		return fmt.Errorf("JSON marshaling failed: %w", err)
+	}
 
-	// Return a JSON response with the page.
+	// Send the JSON response with Fiber
 	return c.Status(fiber.StatusOK).JSON(string(jsonByte))
 }
 
-// partialReload reloads the component with the specified props.
+// partialReload returns a subset of props based on the partial data in the request header.
 func partialReload(c *fiber.Ctx, component string, props fiber.Map) fiber.Map {
-	// Initialize a map to store only the values needed for partial reload.
+	// Initialize an empty map for partial data
 	only := make(fiber.Map)
 
-	// Retrieve the value of the "X-Inertia-Partial-Data" header from the context.
+	// Retrieve the partial data from the request header
 	partial := c.Get(HeaderPartialData)
 
-	// Check if "X-Inertia-Partial-Data" is not empty and the "X-Inertia-Partial-Component" header
-	// has a value equal to the provided component name.
+	// Check if partial data exists and matches the current component
 	if partial != "" && c.Get(HeaderPartialComponent) == component {
-		// Iterate over the values obtained by splitting the "partial" string using commas.
+		// Populate the 'only' map with values from the partial data
 		for _, value := range strings.Split(partial, ",") {
-			// Add each value to the "only" map.
 			only[value] = value
 		}
 
-		// If there are values in the "only" map, indicating a partial reload is needed,
-		// return the map with only the specified values.
+		// If there are values in 'only', return it as the partial data
 		if len(only) > 0 {
 			return only
 		}
 	}
 
-	// If no partial reload is needed, return the original properties map.
+	// If no partial data or no matching component, return the original props
 	return props
 }
