@@ -19,11 +19,12 @@ type (
 	// Engine represents the Inertia engine.
 	Engine struct {
 		*html.Engine
-		ctx    *fiber.Ctx     // The current context.
-		config Config         // The configuration.
-		props  map[string]any // The current props.
-		next   map[string]any // The next props.
-		params map[string]any // The current params.
+		ctx     *fiber.Ctx     // The current context.
+		config  Config         // The configuration.
+		version string         // The inertia version
+		props   map[string]any // The current props.
+		next    map[string]any // The next props.
+		params  map[string]any // The current params.
 	}
 )
 

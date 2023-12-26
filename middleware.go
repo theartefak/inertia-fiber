@@ -31,14 +31,9 @@ func (e *Engine) Middleware() fiber.Handler {
 		    c.Status(fiber.StatusSeeOther)
 		}
 
-		// Check if the request header with key X-Inertia is set to the string "true".
-		if c.Get(HeaderPrefix) == "true" {
-		    c.Set("Vary", "Accept")
-		    c.Set(HeaderPrefix, "true")
-		}
-
 		// Set the version header and context for the engine.
 		c.Set(HeaderVersion, hash)
+		e.version = hash
 		e.ctx = c
 
 		return c.Next()
