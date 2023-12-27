@@ -19,14 +19,26 @@ func (e *Engine) Render(w io.Writer, component string, props any, paths ...strin
 	if !ok {
 		return fmt.Errorf("X-Inertia: props must be of type fiber.Map")
 	}
-	// Partial reload to get updated props
-	p := partialReload(e.ctx, component, propsMap)
 
-	return e.display(component, p, w)
+	return e.partialReload(component, propsMap, w)
 }
 
-// display handles the rendering of the Inertia component.
-func (e *Engine) display(component string, props map[string]interface{}, w io.Writer) error {
+// partialReload handles the reload of the Inertia component.
+func (e *Engine) partialReload(component string, props fiber.Map, w io.Writer) error {
+	// Initialize an empty map for partial data
+	only := make(map[string]string)
+
+	// Retrieve the partial data from the request header
+	partial := e.ctx.Get(HeaderPartialData)
+
+	// Check if partial data exists and matches the current component
+	if partial != "" && e.ctx.Get(HeaderPartialComponent) == component {
+		// Populate the 'only' map with values from the partial data
+		for _, value := range strings.Split(partial, ",") {
+			only[value] = value
+		}
+	}
+
 	// Create a new Inertia page with default values
 	data := &Page{
 		Component : component,
@@ -37,12 +49,16 @@ func (e *Engine) display(component string, props map[string]interface{}, w io.Wr
 
 	// Copy values from the 'next' map to the Inertia page props
 	for key, value := range e.next {
-		data.Props[key] = value
+		if _, ok := only[key]; len(only) == 0 || ok {
+			data.Props[key] = value
+		}
 	}
 
 	// Copy values from the current props to the Inertia page props
 	for key, value := range props {
-		data.Props[key] = value
+		if _, ok := only[key]; len(only) == 0 || ok {
+			data.Props[key] = value
+		}
 	}
 
 	// Copy values from the context props to the Inertia page props
@@ -53,7 +69,9 @@ func (e *Engine) display(component string, props map[string]interface{}, w io.Wr
 			return fmt.Errorf("X-Inertia: could not convert context props to map")
 		}
 		for key, value := range contextProps {
-			data.Props[key] = value
+			if _, ok := only[key]; len(only) == 0 || ok {
+				data.Props[key] = value
+			}
 		}
 	}
 
@@ -75,11 +93,11 @@ func (e *Engine) display(component string, props map[string]interface{}, w io.Wr
 	}
 
 	// Render the HTML response using the configured template and parameters
-	return e.toResponse(data, w, e.config.Template, e.Engine.Render, e.params)
+	return e.renderHTML(data, w, e.config.Template, e.Engine.Render, e.params)
 }
 
-// toResponse prepares the data for rendering and invokes the specified renderer.
-func (e *Engine) toResponse(data *Page, w io.Writer, tmpl string, renderer func(io.Writer, string, any, ...string) error, params map[string]any) error {
+// renderHTML prepares the data for rendering and invokes the specified renderer.
+func (e *Engine) renderHTML(data *Page, w io.Writer, tmpl string, renderer func(io.Writer, string, any, ...string) error, params map[string]any) error {
 	// Marshal Inertia page data to JSON
 	componentData, err := json.Marshal(data)
 	if err != nil {
@@ -107,6 +125,9 @@ func (e *Engine) toResponse(data *Page, w io.Writer, tmpl string, renderer func(
 		vals[key] = value
 	}
 
+	// Set Vary Header to X-Inertia
+	e.ctx.Set("Vary", HeaderPrefix)
+
 	// Set the Content-Type header for HTML response
 	e.ctx.Set("Content-Type", "text/html")
 
@@ -117,36 +138,11 @@ func (e *Engine) toResponse(data *Page, w io.Writer, tmpl string, renderer func(
 // jsonResponse sends a JSON response using Fiber for Inertia requests.
 func jsonResponse(c *fiber.Ctx, page *Page) error {
 	// Marshal the Inertia page to JSON
-	jsonByte, err := json.Marshal(page)
+	jsonByte, err := json.MarshalIndent(page, "", "    ")
 	if err != nil {
 		return fmt.Errorf("JSON marshaling failed: %w", err)
 	}
 
 	// Send the JSON response with Fiber
 	return c.Status(fiber.StatusOK).JSON(string(jsonByte))
-}
-
-// partialReload returns a subset of props based on the partial data in the request header.
-func partialReload(c *fiber.Ctx, component string, props fiber.Map) fiber.Map {
-	// Initialize an empty map for partial data
-	only := make(fiber.Map)
-
-	// Retrieve the partial data from the request header
-	partial := c.Get(HeaderPartialData)
-
-	// Check if partial data exists and matches the current component
-	if partial != "" && c.Get(HeaderPartialComponent) == component {
-		// Populate the 'only' map with values from the partial data
-		for _, value := range strings.Split(partial, ",") {
-			only[value] = value
-		}
-
-		// If there are values in 'only', return it as the partial data
-		if len(only) > 0 {
-			return only
-		}
-	}
-
-	// If no partial data or no matching component, return the original props
-	return props
 }
