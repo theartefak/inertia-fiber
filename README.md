@@ -83,8 +83,8 @@ func main() {
 ##### Extra functions :
 
 - Share : Shares a prop for every request.
-- AddProp : Add a prop from middleware for the next request.
-- AddParam : Share a param with the root template.
+- WithProp : Add a prop from middleware for the next request.
+- WithViewData : Share a param with the root template.
 
 ## Credits
 

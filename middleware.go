@@ -15,9 +15,6 @@ func (e *Engine) Middleware() fiber.Handler {
 		// Compute the hash of the assets directory.
 		hash := utils.HashDir(e.config.AssetsPath)
 
-		// Set Vary Header to X-Inertia
-		c.Set("Vary", HeaderPrefix)
-
 		// If the request is an XHR GET request and the version header does not match the hash, return a conflict error.
 		if c.Method() == "GET" && c.XHR() && c.Get(HeaderVersion, "1") != hash {
 			c.Set(HeaderLocation, c.OriginalURL())
@@ -44,10 +41,10 @@ func (e *Engine) Share(name string, value any) {
 	e.props[name] = value
 }
 
-func (e *Engine) AddProp(name string, value any) {
+func (e *Engine) WithProp(name string, value any) {
 	e.next[name] = value
 }
 
-func (e *Engine) AddParam(name string, value any) {
+func (e *Engine) WithViewData(name string, value any) {
 	e.params[name] = value
 }
