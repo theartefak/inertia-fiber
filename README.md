@@ -27,7 +27,7 @@ func main() {
     app.Use(engine.Middleware())
 
     app.Get("/", func(c *fiber.Ctx) error {
-        return c.Render("Index", fiber.Map{
+        return engine.View("Index", fiber.Map{
             "greeting": "Hello World",
         })
     }).Name("Home")
