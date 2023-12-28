@@ -31,7 +31,6 @@ func (e *Engine) Middleware() fiber.Handler {
 		// Set the version header and context for the engine.
 		c.Set(HeaderVersion, hash)
 		e.version = hash
-		e.ctx = c
 
 		return c.Next()
 	}

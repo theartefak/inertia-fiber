@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
 	"strconv"
 	"strings"
 
@@ -12,61 +11,76 @@ import (
 	"github.com/theartefak/inertia-fiber/utils"
 )
 
-// Render renders the Inertia component.
-func (e *Engine) Render(w io.Writer, component string, props any, paths ...string) error {
-	// Type assertion for props to ensure it is a fiber.Map
-	propsMap, ok := props.(fiber.Map)
-	if !ok {
-		return fmt.Errorf("X-Inertia: props must be of type fiber.Map")
-	}
+// View function returns a Fiber handler function for rendering Inertia.js views.
+func (e *Engine) View(component string, props fiber.Map) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Check if the request header indicates JSON rendering
+		renderJSON, err := strconv.ParseBool(c.Get(HeaderPrefix, "false"))
+		if err != nil {
+			return fmt.Errorf("X-Inertia not parsable: %w", err)
+		}
 
-	return e.partialReload(component, propsMap, w)
+		// Attempt to perform a partial reload of the component
+		partial, err := e.partialReload(component, props, c)
+		if err != nil {
+			return fmt.Errorf("X-Inertia: %w", err)
+		}
+
+		// If JSON rendering is requested and it's an XHR request, return JSON response
+		if renderJSON && c.XHR() {
+			c.Set("Vary", "Accept")
+			c.Set("X-Inertia", "true")
+			c.Set("Content-Type", "application/json")
+			return c.Status(fiber.StatusOK).JSON(partial)
+		}
+
+		// Render the HTML page using the provided template and parameters
+		return e.renderHTML(partial, c, e.config.Template, e.params)
+	}
 }
 
-// partialReload handles the reload of the Inertia component.
-func (e *Engine) partialReload(component string, props fiber.Map, w io.Writer) error {
-	// Initialize an empty map for partial data
+// partialReload function performs a partial reload of the component data.
+func (e *Engine) partialReload(component string, props fiber.Map, c *fiber.Ctx) (*Page, error) {
 	only := make(map[string]string)
 
-	// Retrieve the partial data from the request header
-	partial := e.ctx.Get(HeaderPartialData)
+	// Extract partial data from the request header
+	partial := c.Get(HeaderPartialData)
 
-	// Check if partial data exists and matches the current component
-	if partial != "" && e.ctx.Get(HeaderPartialComponent) == component {
-		// Populate the 'only' map with values from the partial data
+	// Process partial data if present and matches the current component
+	if partial != "" && c.Get(HeaderPartialComponent) == component {
 		for _, value := range strings.Split(partial, ",") {
 			only[value] = value
 		}
 	}
 
-	// Create a new Inertia page with default values
+	// Create a new Page object with relevant data for the component
 	data := &Page{
-		Component : component,
-		Props     : make(fiber.Map),
-		URL       : e.ctx.OriginalURL(),
-		Version   : e.version,
+		Component: component,
+		Props:     make(fiber.Map),
+		URL:       c.OriginalURL(),
+		Version:   e.version,
 	}
 
-	// Copy values from the 'next' map to the Inertia page props
+	// Copy the next data for keys specified in the partial reload
 	for key, value := range e.next {
 		if _, ok := only[key]; len(only) == 0 || ok {
 			data.Props[key] = value
 		}
 	}
 
-	// Copy values from the current props to the Inertia page props
+	// Copy the props for keys specified in the partial reload
 	for key, value := range props {
 		if _, ok := only[key]; len(only) == 0 || ok {
 			data.Props[key] = value
 		}
 	}
 
-	// Copy values from the context props to the Inertia page props
-	contextProps := e.ctx.Context().Value(ContextKeyProps)
+	// Copy the context props for keys specified in the partial reload
+	contextProps := c.Context().Value("props")
 	if contextProps != nil {
 		contextProps, ok := contextProps.(fiber.Map)
 		if !ok {
-			return fmt.Errorf("X-Inertia: could not convert context props to map")
+			return nil, fmt.Errorf("X-Inertia: could not convert context props to map")
 		}
 		for key, value := range contextProps {
 			if _, ok := only[key]; len(only) == 0 || ok {
@@ -75,37 +89,22 @@ func (e *Engine) partialReload(component string, props fiber.Map, w io.Writer) e
 		}
 	}
 
-	// Reset the 'next' map for the next rendering cycle
+	// Reset the next data to an empty map
 	e.next = map[string]any{}
 
-	// Check if XHR and Inertia should render JSON response
-	renderJSON, err := strconv.ParseBool(e.ctx.Get(HeaderPrefix, "false"))
-	if err != nil {
-		return fmt.Errorf("X-Inertia not parsable: %w", err)
-	}
-
-	if renderJSON && e.ctx.XHR() {
-		// Set headers for JSON response and return JSON representation of the Inertia page
-		e.ctx.Set("Vary", "Accept")
-		e.ctx.Set("X-Inertia", "true")
-		e.ctx.Set("Content-Type", "application/json")
-		return jsonResponse(e.ctx, data)
-	}
-
-	// Render the HTML response using the configured template and parameters
-	return e.renderHTML(data, w, e.config.Template, e.Engine.Render, e.params)
+	return data, nil
 }
 
-// renderHTML prepares the data for rendering and invokes the specified renderer.
-func (e *Engine) renderHTML(data *Page, w io.Writer, tmpl string, renderer func(io.Writer, string, any, ...string) error, params map[string]any) error {
-	// Marshal Inertia page data to JSON
+// renderHTML function renders the HTML page using the specified template and parameters.
+func (e *Engine) renderHTML(data *Page, c *fiber.Ctx, tmpl string, params map[string]any) error {
+	// Marshal the component data to JSON
 	componentData, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("JSON marshaling failed: %w", err)
 	}
 
-	// Create a new Ziggy instance
-	ziggy := utils.NewZiggy(e.ctx)
+	// Create a Ziggy instance for client-side routing
+	ziggy := utils.NewZiggy(c)
 
 	// Marshal Ziggy data to JSON
 	ziggyData, err := json.Marshal(ziggy)
@@ -113,36 +112,22 @@ func (e *Engine) renderHTML(data *Page, w io.Writer, tmpl string, renderer func(
 		return fmt.Errorf("JSON marshaling failed: %w", err)
 	}
 
-	// Construct values for rendering the HTML page
+	// Define values for the template rendering
 	vals := fiber.Map{
-		"Inertia" : template.HTML(fmt.Sprintf("<div id='app' data-page='%s'></div>", string(componentData))),
-		"Ziggy"   : template.HTML(fmt.Sprintf("<script>const Ziggy = %s;</script>", string(ziggyData))),
-		"Vite"    : utils.Vite([]string{e.config.AssetsPath + "/app.js", e.config.AssetsPath + "/Pages/" + data.Component + ".vue"}),
+		"Inertia": template.HTML(fmt.Sprintf("<div id='app' data-page='%s'></div>", string(componentData))),
+		"Ziggy":   template.HTML(fmt.Sprintf("<script>const Ziggy = %s;</script>", string(ziggyData))),
+		"Vite":    utils.Vite([]string{e.config.AssetsPath + "/app.js", e.config.AssetsPath + "/Pages/" + data.Component + ".vue"}),
 	}
 
-	// Add additional parameters for rendering
+	// Include additional parameters for template rendering
 	for key, value := range params {
 		vals[key] = value
 	}
 
-	// Set Vary Header to X-Inertia
-	e.ctx.Set("Vary", HeaderPrefix)
+	// Set response headers
+	c.Set("Vary", HeaderPrefix)
+	c.Set("Content-Type", "text/html")
 
-	// Set the Content-Type header for HTML response
-	e.ctx.Set("Content-Type", "text/html")
-
-	// Invoke the specified renderer to render the HTML page
-	return renderer(w, tmpl, vals)
-}
-
-// jsonResponse sends a JSON response using Fiber for Inertia requests.
-func jsonResponse(c *fiber.Ctx, page *Page) error {
-	// Marshal the Inertia page to JSON
-	jsonByte, err := json.MarshalIndent(page, "", "    ")
-	if err != nil {
-		return fmt.Errorf("JSON marshaling failed: %w", err)
-	}
-
-	// Send the JSON response with Fiber
-	return c.Status(fiber.StatusOK).JSON(string(jsonByte))
+	// Render the HTML page using the specified template and values
+	return e.Render(c, tmpl, vals)
 }

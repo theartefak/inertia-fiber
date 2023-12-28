@@ -3,7 +3,6 @@ package inertia
 import (
 	"net/http"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
 )
 
@@ -19,7 +18,6 @@ type (
 	// Engine represents the Inertia engine.
 	Engine struct {
 		*html.Engine
-		ctx     *fiber.Ctx     // The current context.
 		config  Config         // The configuration.
 		version string         // The inertia version
 		props   map[string]any // The current props.
