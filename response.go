@@ -55,10 +55,10 @@ func (e *Engine) partialReload(component string, props fiber.Map, c *fiber.Ctx) 
 
 	// Create a new Page object with relevant data for the component
 	data := &Page{
-		Component: component,
-		Props:     make(fiber.Map),
-		URL:       c.OriginalURL(),
-		Version:   e.version,
+		Component : component,
+		Props     : make(fiber.Map),
+		URL       : c.OriginalURL(),
+		Version   : e.version,
 	}
 
 	// Copy the next data for keys specified in the partial reload
@@ -114,9 +114,9 @@ func (e *Engine) renderHTML(data *Page, c *fiber.Ctx, tmpl string, params map[st
 
 	// Define values for the template rendering
 	vals := fiber.Map{
-		"Inertia": template.HTML(fmt.Sprintf("<div id='app' data-page='%s'></div>", string(componentData))),
-		"Ziggy":   template.HTML(fmt.Sprintf("<script>const Ziggy = %s;</script>", string(ziggyData))),
-		"Vite":    utils.Vite([]string{e.config.AssetsPath + "/app.js", e.config.AssetsPath + "/Pages/" + data.Component + ".vue"}),
+		"Inertia" : template.HTML(fmt.Sprintf("<div id='app' data-page='%s'></div>", string(componentData))),
+		"Ziggy"   : template.HTML(fmt.Sprintf("<script>const Ziggy = %s;</script>", string(ziggyData))),
+		"Vite"    : utils.Vite([]string{e.config.AssetsPath + "/app.js", e.config.AssetsPath + "/Pages/" + data.Component + ".vue"}),
 	}
 
 	// Include additional parameters for template rendering
@@ -126,7 +126,7 @@ func (e *Engine) renderHTML(data *Page, c *fiber.Ctx, tmpl string, params map[st
 
 	// Set response headers
 	c.Set("Vary", HeaderPrefix)
-	c.Set("Content-Type", "text/html")
+	c.Set("Content-Type", "text/html; charset=UTF-8")
 
 	// Render the HTML page using the specified template and values
 	return e.Render(c, tmpl, vals)
