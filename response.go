@@ -112,10 +112,14 @@ func (e *Engine) renderHTML(data *Page, c *fiber.Ctx, tmpl string, params map[st
 		return fmt.Errorf("JSON marshaling failed: %w", err)
 	}
 
+
+	// Escape HTML characters in the componentData string using the HTMLEscapeString function
+	inertiaData := template.HTMLEscapeString(string(componentData))
+
 	// Define values for the template rendering
 	vals := fiber.Map{
-		"Inertia" : template.HTML(fmt.Sprintf("<div id='app' data-page='%s'></div>", string(componentData))),
-		"Ziggy"   : template.HTML(fmt.Sprintf("<script>const Ziggy = %s;</script>", string(ziggyData))),
+		"Inertia" : template.HTML(fmt.Sprintf("<div id='app' data-page='%s'></div>", inertiaData )),
+		"Ziggy"   : template.HTML(fmt.Sprintf(`<script>const Ziggy = %s;</script>`, string(ziggyData))),
 		"Vite"    : utils.Vite([]string{e.config.AssetsPath + "/app.js", e.config.AssetsPath + "/Pages/" + data.Component + ".vue"}),
 	}
 
