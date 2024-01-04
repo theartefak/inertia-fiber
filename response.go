@@ -12,31 +12,29 @@ import (
 )
 
 // View function returns a Fiber handler function for rendering Inertia.js views.
-func (e *Engine) View(component string, props fiber.Map) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		// Check if the request header indicates JSON rendering
-		renderJSON, err := strconv.ParseBool(c.Get(HeaderPrefix, "false"))
-		if err != nil {
-			return fmt.Errorf("X-Inertia not parsable: %w", err)
-		}
-
-		// Attempt to perform a partial reload of the component
-		partial, err := e.partialReload(component, props, c)
-		if err != nil {
-			return fmt.Errorf("X-Inertia: %w", err)
-		}
-
-		// If JSON rendering is requested and it's an XHR request, return JSON response
-		if renderJSON && c.XHR() {
-			c.Set("Vary", "Accept")
-			c.Set("X-Inertia", "true")
-			c.Set("Content-Type", "application/json")
-			return c.Status(fiber.StatusOK).JSON(partial)
-		}
-
-		// Render the HTML page using the provided template and parameters
-		return e.renderHTML(partial, c, e.config.Template, e.params)
+func (e *Engine) View(component string, props fiber.Map, context *fiber.Ctx) error {
+	// Check if the request header indicates JSON rendering
+	renderJSON, err := strconv.ParseBool(context.Get(HeaderPrefix, "false"))
+	if err != nil {
+		return fmt.Errorf("X-Inertia not parsable: %w", err)
 	}
+
+	// Attempt to perform a partial reload of the component
+	partial, err := e.partialReload(component, props, context)
+	if err != nil {
+		return fmt.Errorf("X-Inertia: %w", err)
+	}
+
+	// If JSON rendering is requested and it's an XHR request, return JSON response
+	if renderJSON && context.XHR() {
+		context.Set("Vary", "Accept")
+		context.Set("X-Inertia", "true")
+		context.Set("Content-Type", "application/json")
+		return context.Status(fiber.StatusOK).JSON(partial)
+	}
+
+	// Render the HTML page using the provided template and parameters
+	return e.renderHTML(partial, context, e.config.Template, e.params)
 }
 
 // partialReload function performs a partial reload of the component data.
