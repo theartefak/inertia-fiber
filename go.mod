@@ -3,7 +3,7 @@ module github.com/theartefak/inertia-fiber
 go 1.21.5
 
 require (
-	github.com/gofiber/fiber/v2 v2.52.0
+	github.com/gofiber/fiber/v2 v2.52.3
 	github.com/gofiber/template/html/v2 v2.1.0
 )
 
